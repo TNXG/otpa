@@ -1,0 +1,22 @@
+{
+  "signIn": "Sign in to OTPA",
+  "username": "Username",
+  "password": "Password",
+  "login": "Sign in",
+  "register": "Register",
+  "needAccount": "Need an account?",
+  "createAccount": "Create an Account",
+  "confirmPassword": "Confirm Password",
+  "alreadyHaveAccount": "Already have an account?",
+  "dashboard": "OTPA Dashboard",
+  "addCode": "Add Code",
+  "logout": "Logout",
+  "addNewCode": "Add New Code",
+  "cancel": "Cancel",
+  "add": "Add",
+  "invalidCredentials": "Invalid username or password",
+  "registrationFailed": "Registration failed. Please try again.",
+  "passwordsDoNotMatch": "Passwords do not match",
+  "invalidOtpUrl": "Invalid OTP URL"
+}
+
