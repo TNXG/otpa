@@ -1,6 +1,7 @@
-import { db_find, db_update } from "@/lib/db";
+import { db_find, db_insert, db_read } from "@/lib/db";
 import { getSession } from "@/lib/jwt";
 import { NextResponse } from "next/server";
+import * as otpauth from "otpauth";
 
 const DB_NAME = "otpa";
 
@@ -10,14 +11,15 @@ export async function GET() {
 		if (!session) {
 			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 		}
-		// 查找用户
-		const user = await db_find(DB_NAME, "users", { username: session.username });
-		if (!user) {
-			return NextResponse.json({ error: "User not found" }, { status: 404 });
-		}
 
-		return NextResponse.json({ codes: user.otpSecrets });
-	} catch {
+		const otpRecords = await db_read(DB_NAME, "OTPS", { username: session.username }, { projection: { data: 1, _id: 0 } });
+
+		// 直接提取 data 字段的值
+		const dataValues = otpRecords.map(record => record.data);
+
+		return NextResponse.json(dataValues);
+	} catch (error) {
+		console.error("GET请求出错:", error);
 		return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 	}
 }
@@ -31,31 +33,24 @@ export async function POST(request: Request) {
 
 		const data = await request.json();
 
-		// 查找用户
-		const user = await db_find(DB_NAME, "users", { id: session.id });
+		// 确保用户存在
+		const user = await db_find(DB_NAME, "users", { username: session.username });
+
 		if (!user) {
 			return NextResponse.json({ error: "User not found" }, { status: 404 });
 		}
 
-		// 新的 OTP 信息
-		const newOtpSecret = {
-			name: data.account,
-			issuer: data.issuer,
-			secret: data.secret,
-			algorithm: data.algorithm,
-			digits: data.digits,
-			period: data.period,
-		};
+		// 检验otpUrl是否有效
+		const otpUrl = otpauth.URI.parse(data.otpUrl);
+		if (!otpUrl) {
+			return NextResponse.json({ error: "Invalid OTP URL" }, { status: 403 });
+		}
 
-		// 更新用户的 OTP 信息
-		const updateSuccess = await db_update(DB_NAME, "users", { id: session.id }, {
-			$push: {
-				otpSecrets: newOtpSecret,
-			},
-		});
+		// 插入新的 OTP 记录
+		const insertSuccess = await db_insert(DB_NAME, "OTPS", { username: session.username, data });
 
-		if (!updateSuccess) {
-			return NextResponse.json({ error: "Failed to update OTP information" }, { status: 500 });
+		if (!insertSuccess) {
+			return NextResponse.json({ error: "Failed to save OTP information" }, { status: 500 });
 		}
 
 		return NextResponse.json({ success: true });

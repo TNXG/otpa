@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Favicon } from "@/components/ui/favicon";
+import { Toaster } from "@/components/ui/toaster";
 import { NextIntlClientProvider } from "next-intl";
 
 import { getLocale, getMessages } from "next-intl/server";
@@ -11,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 	return {
 		title: "OTPA - OTP Authenticator",
 		description: "Secure OTP authentication management",
-	}
+	};
 }
 
 export async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -29,6 +30,7 @@ export async function RootLayout({ children }: { children: React.ReactNode }) {
 						{children}
 					</NextIntlClientProvider>
 				</ThemeProvider>
+				<Toaster />
 			</body>
 		</html>
 	);

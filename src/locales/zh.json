@@ -17,5 +17,18 @@
 	"invalidCredentials": "用户名或密码无效",
 	"registrationFailed": "注册失败。请重试。",
 	"passwordsDoNotMatch": "密码不匹配",
-	"invalidOtpUrl": "无效的 OTP URL"
+	"invalidOtpUrl": "无效的 OTP URL",
+	"failedToFetchCodes": "获取验证码失败:",
+	"networkRequestFailed": "网络请求失败: {statusText}",
+	"errorOccurred": "发生错误: {message}",
+	"unknownError": "发生未知错误",
+	"logoutFailed": "登出失败: {statusText}",
+	"logoutError": "登出时发生错误",
+	"enterOtpUrl": "输入 OTP URL 以添加新验证码。",
+	"otpType": "OTP 类型",
+	"selectOtpType": "选择 OTP 类型",
+	"otpLinks": "OTP 链接",
+	"otpUrlPlaceholder": "otpauth:// URL",
+	"codeCopied": "验证码已复制",
+	"codeAdded": "验证码已添加"
 }
