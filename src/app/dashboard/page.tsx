@@ -69,32 +69,47 @@ export default function DashboardPage() {
 	const t = useTranslations();
 
 	useEffect(() => {
-		const fetchCodes = async () => {
-			try {
-				const res = await fetch("/api/codes");
-				const data = await res.json();
+		let eventSource: EventSource;
 
-				const processedCodes = data.map((item: { otpUrl: string; type: "totp" | "hotp" }) => {
-					const otp = otpauth.URI.parse(item.otpUrl);
-					const code = otp.generate();
+		const setupSSE = () => {
+			eventSource = new EventSource("/api/codes?sse=true");
 
-					return {
-						name: otp.label,
-						issuer: otp.issuer,
-						code,
-						timeRemaining: 30 - Math.floor(Date.now() / 1000) % 30,
-					};
-				});
+			eventSource.onmessage = (event) => {
+				try {
+					const data = JSON.parse(event.data);
+					const processedCodes = data.map((item: { otpUrl: string; type: "totp" | "hotp" }) => {
+						const otp = otpauth.URI.parse(item.otpUrl);
+						const code = otp.generate();
 
-				setCodes(processedCodes);
-			} catch (err) {
-				console.error(t("failedToFetchCodes"), err);
-			}
+						return {
+							name: otp.label,
+							issuer: otp.issuer,
+							code,
+							timeRemaining: 30 - Math.floor(Date.now() / 1000) % 30,
+						};
+					});
+
+					setCodes(processedCodes);
+				} catch (err) {
+					console.error(t("failedToFetchCodes"), err);
+				}
+			};
+
+			eventSource.onerror = (error) => {
+				console.error("SSE Error:", error);
+				eventSource.close();
+				// 5秒后尝试重新连接
+				setTimeout(setupSSE, 5000);
+			};
 		};
 
-		fetchCodes();
-		const interval = setInterval(fetchCodes, 1000);
-		return () => clearInterval(interval);
+		setupSSE();
+
+		return () => {
+			if (eventSource) {
+				eventSource.close();
+			}
+		};
 	}, [t]);
 
 	const handleCopyCode = (code: string) => {

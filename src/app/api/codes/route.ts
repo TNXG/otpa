@@ -5,23 +5,72 @@ import * as otpauth from "otpauth";
 
 const DB_NAME = "otpa";
 
-export async function GET() {
-	try {
-		const session = await getSession();
-		if (!session) {
-			return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(request: Request) {
+	const { searchParams } = new URL(request.url);
+	const isSSE = searchParams.get("sse") === "true";
+
+	if (!isSSE) {
+		// 原有的普通 GET 请求逻辑
+		try {
+			const session = await getSession();
+			if (!session) {
+				return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+			}
+
+			const otpRecords = await db_read(DB_NAME, "OTPS", { username: session.username }, { projection: { data: 1, _id: 0 } });
+			const dataValues = otpRecords.map(record => record.data);
+
+			return NextResponse.json(dataValues);
+		} catch (error) {
+			console.error("GET请求出错:", error);
+			return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 		}
-
-		const otpRecords = await db_read(DB_NAME, "OTPS", { username: session.username }, { projection: { data: 1, _id: 0 } });
-
-		// 直接提取 data 字段的值
-		const dataValues = otpRecords.map(record => record.data);
-
-		return NextResponse.json(dataValues);
-	} catch (error) {
-		console.error("GET请求出错:", error);
-		return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 	}
+
+	// SSE 流处理
+	const encoder = new TextEncoder();
+	const stream = new ReadableStream({
+		async start(controller) {
+			try {
+				const session = await getSession();
+				if (!session) {
+					controller.error("Unauthorized");
+					return;
+				}
+
+				const sendUpdate = async () => {
+					const otpRecords = await db_read(DB_NAME, "OTPS", { username: session.username }, { projection: { data: 1, _id: 0 } });
+					const dataValues = otpRecords.map(record => record.data);
+					controller.enqueue(encoder.encode(`data: ${JSON.stringify(dataValues)}\n\n`));
+				};
+
+				// 立即发送第一次数据
+				await sendUpdate();
+
+				// 每秒更新一次
+				const interval = setInterval(sendUpdate, 1000);
+
+				// 清理函数
+				const cleanup = () => {
+					clearInterval(interval);
+					controller.close();
+				};
+
+				// 60秒后自动断开连接
+				setTimeout(cleanup, 60000);
+			} catch (error) {
+				controller.error(error);
+			}
+		},
+	});
+
+	return new Response(stream, {
+		headers: {
+			"Content-Type": "text/event-stream",
+			"Cache-Control": "no-cache",
+			"Connection": "keep-alive",
+		},
+	});
 }
 
 export async function POST(request: Request) {
